@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const preset = document.getElementById('output-preset').value;
     const ocrLang = document.getElementById('ocr-lang').value;
     const apiProvider = document.getElementById('api-provider').value;
-    const apiKey = document.getElementById('api-key').value;
+    const apiKey = document.getElementById('api-key').value.trim();
 
     const options = {
       pdpa: pdpaEnabled,
@@ -225,4 +225,55 @@ document.addEventListener('DOMContentLoaded', () => {
       ui.switchTab(tabId);
     });
   });
+
+  // 6. Test API Connection Action
+  const btnTestApi = document.getElementById('btn-test-api');
+  const apiTestStatus = document.getElementById('api-test-status');
+
+  if (btnTestApi) {
+    btnTestApi.addEventListener('click', async () => {
+      const apiKey = document.getElementById('api-key').value.trim();
+      const provider = document.getElementById('api-provider').value;
+
+      if (!apiKey) {
+        apiTestStatus.innerHTML = '<span style="color:var(--red);">❌ Please enter an API key first.</span>';
+        return;
+      }
+
+      apiTestStatus.innerHTML = '<span style="color:var(--text);">⏳ Testing connection...</span>';
+
+      try {
+        if (provider === 'gemini') {
+          const res = await fetch('https://generativelanguage.googleapis.com/v1/models', {
+            headers: { 'x-goog-api-key': apiKey }
+          });
+          const data = await res.json();
+          if (res.ok) {
+            const hasFlash = data.models && data.models.some(m => m.name.includes('gemini-1.5-flash'));
+            if (hasFlash) {
+              apiTestStatus.innerHTML = '<span style="color:var(--green);">✅ Connection successful! Gemini 1.5 Flash is ready.</span>';
+            } else {
+              apiTestStatus.innerHTML = '<span style="color:var(--gold);">⚠️ Connected, but gemini-1.5-flash is not in your available models list.</span>';
+            }
+          } else {
+            apiTestStatus.innerHTML = `<span style="color:var(--red);">❌ API Error: ${data.error ? data.error.message : res.statusText}</span>`;
+          }
+        } else if (provider === 'whisper') {
+          const res = await fetch('https://api.openai.com/v1/models', {
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+          });
+          const data = await res.json();
+          if (res.ok) {
+            apiTestStatus.innerHTML = '<span style="color:var(--green);">✅ Connection successful! OpenAI Whisper is ready.</span>';
+          } else {
+            apiTestStatus.innerHTML = `<span style="color:var(--red);">❌ OpenAI Error: ${data.error ? data.error.message : res.statusText}</span>`;
+          }
+        } else {
+          apiTestStatus.innerHTML = '<span style="color:var(--red);">❌ Mode A (Local) does not require connection testing.</span>';
+        }
+      } catch (err) {
+        apiTestStatus.innerHTML = `<span style="color:var(--red);">❌ Network Error: ${err.message}</span>`;
+      }
+    });
+  }
 });

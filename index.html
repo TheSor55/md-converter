@@ -122,8 +122,11 @@
           </div>
           <div class="setting-item" id="api-key-container" style="display:none;">
             <label class="setting-label" for="api-key">API Bearer Key / Secret</label>
-            <input type="text" class="input-text" id="api-key" placeholder="กรอก API Key ของคุณที่นี่..." style="-webkit-text-security: disc; text-security: disc;" autocomplete="off" />
-            <span class="setting-desc">Stored locally in your browser cache. Never sent to any server except the direct provider API.</span>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <input type="text" class="input-text" id="api-key" placeholder="กรอก API Key ของคุณที่นี่..." style="-webkit-text-security: disc; text-security: disc; flex:1;" autocomplete="off" />
+              <button type="button" class="btn" id="btn-test-api" style="padding:0.4rem 0.75rem; font-size:0.8rem; height:36px; white-space:nowrap; background:rgba(88,166,255,0.1); border:1px solid var(--border); color:var(--text); border-radius:4px; cursor:pointer;">Test Connection</button>
+            </div>
+            <span class="setting-desc" id="api-test-status" style="margin-top:0.25rem; display:block;">Stored locally in your browser cache. Never sent to any server except the direct provider API.</span>
           </div>
         </section>
 
