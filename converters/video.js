@@ -16,14 +16,26 @@ export async function convertVideo(file, providerName, apiKey, onProgress) {
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   const audioCtx = new AudioContext();
   
-  let audioBuffer;
+  let decodedBuffer;
   try {
-    audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
   } catch (err) {
     throw new Error(`Failed to decode audio track from video file: ${err.message}. Ensure the video file has a valid audio stream.`);
   }
   
-  if (typeof onProgress === 'function') onProgress(45);
+  if (typeof onProgress === 'function') onProgress(35);
+  
+  // Downsample to 16000Hz Mono using OfflineAudioContext to reduce size significantly
+  const OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const offlineCtx = new OfflineAudioContext(1, decodedBuffer.duration * 16000, 16000);
+  
+  const source = offlineCtx.createBufferSource();
+  source.buffer = decodedBuffer;
+  source.connect(offlineCtx.destination);
+  source.start();
+  
+  const audioBuffer = await offlineCtx.startRendering();
+  if (typeof onProgress === 'function') onProgress(50);
   
   // Convert AudioBuffer to WAV blob
   const wavBlob = bufferToWav(audioBuffer);
