@@ -1,4 +1,4 @@
-const CACHE_NAME = "md-converter-v2.0.0";
+const CACHE_NAME = "md-converter-v2.0.1";
 const ASSETS = [
   "./",
   "./index.html",
@@ -52,17 +52,26 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// Fetch Event
+// Fetch Event - Network-First Strategy (Online gets updates, Offline falls back to cache)
 self.addEventListener("fetch", (e) => {
+  // Only handle HTTP/HTTPS requests
+  if (!e.request.url.startsWith('http')) return;
+
   e.respondWith(
-    caches.match(e.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(e.request).catch(() => {
-        // Fallback for offline if resource not found
-        console.log("[Service Worker] Resource not found offline:", e.request.url);
-      });
-    })
+    fetch(e.request)
+      .then((networkResponse) => {
+        // If valid response, clone and update the cache
+        if (networkResponse && networkResponse.status === 200) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(e.request, responseClone);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        // Fallback to cache if network is unavailable
+        return caches.match(e.request);
+      })
   );
 });
