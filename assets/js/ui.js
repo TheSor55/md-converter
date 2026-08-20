@@ -233,9 +233,9 @@ export class UIManager {
         onRemoveFileCallback(index);
       });
       
-      // Allow clicking on a queue item to view it in workspace if it's already done
+      // Allow clicking on a queue item to view it in workspace if it's done or failed
       li.addEventListener('click', () => {
-        if (item.status === 'done' && item.resultIndex !== -1) {
+        if ((item.status === 'done' || item.status === 'failed') && item.resultIndex !== -1) {
           // Fire event or invoke callback to load this specific result
           this.loadResultInWorkspace(item.resultIndex);
         }
@@ -285,10 +285,34 @@ export class UIManager {
   loadResultInWorkspace(resultIndex, allResults = []) {
     const results = allResults.length > 0 ? allResults : this.currentResults || [];
     const result = results[resultIndex];
-    if (!result || !result.ok) return;
+    if (!result) return;
 
     this.activeResult = result;
     this.wp.style.display = 'block';
+    
+    if (!result.ok) {
+      this.wsFilename.textContent = `Error: ${result.name}`;
+      this.metaFile.textContent = result.name;
+      this.metaType.textContent = 'ERROR';
+      this.metaOrigSize.textContent = '-';
+      this.metaMdSize.textContent = '-';
+      this.metaTokens.textContent = '-';
+      this.metaReduction.textContent = '-';
+      this.metaOcrWarn.style.display = 'none';
+
+      this.editorArea.value = `⚠️ Error during conversion:\n\n${result.error}\n\nSuggestions:\n- For Pre-recorded Audio/Video files, ensure you have selected either OpenAI Whisper or Google Gemini API in the sidebar settings and entered a valid API Key.\n- Local browser speech engine only supports real-time microphone dictation under the 'Audio' tab.`;
+      this.editorArea.classList.remove('hidden');
+      this.previewArea.classList.remove('active');
+      this.previewActive = false;
+      this.btnTogglePreview.textContent = '👁 Show Preview';
+      
+      const okCount = results.filter(r => r.ok).length;
+      this.btnDlZip.style.display = okCount > 1 ? 'inline-flex' : 'none';
+      
+      this.wp.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+
     this.wsFilename.textContent = `Result Workspace: ${result.name}`;
     
     // Update Meta info panel
