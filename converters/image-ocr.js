@@ -1,6 +1,6 @@
 /**
  * converters/image-ocr.js
- * Performs client-side image OCR (Thai / English) using Tesseract.js
+ * Performs client-side image OCR (Thai / English) using Tesseract.js v4 API
  */
 
 export async function convertImageOcr(file, lang = 'eng+tha', onProgress) {
@@ -8,8 +8,8 @@ export async function convertImageOcr(file, lang = 'eng+tha', onProgress) {
     throw new Error('Tesseract.js is not loaded. Ensure tesseract.min.js is present in libs/.');
   }
   
-  // Create worker with specific language. 1 is default OCR Engine Mode (OEM)
-  const worker = await Tesseract.createWorker(lang, 1, {
+  // Create worker with logger option
+  const worker = await Tesseract.createWorker({
     logger: message => {
       // Progress reporting
       if (message && message.status === 'recognizing' && typeof onProgress === 'function') {
@@ -20,6 +20,11 @@ export async function convertImageOcr(file, lang = 'eng+tha', onProgress) {
   });
   
   try {
+    // Tesseract.js v4 required sequence
+    await worker.load();
+    await worker.loadLanguage(lang);
+    await worker.initialize(lang);
+    
     const { data: { text } } = await worker.recognize(file);
     return text || '';
   } finally {
