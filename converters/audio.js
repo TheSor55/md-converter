@@ -81,7 +81,7 @@ export class GeminiProvider extends TranscriptionProvider {
     if (typeof onProgress === 'function') onProgress(50);
     
     const mimeType = file.type || "audio/wav";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
     
     const body = {
       contents: [{
@@ -96,7 +96,10 @@ export class GeminiProvider extends TranscriptionProvider {
     
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey
+      },
       body: JSON.stringify(body)
     });
     
