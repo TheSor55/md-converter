@@ -81,7 +81,7 @@ export class GeminiProvider extends TranscriptionProvider {
     if (typeof onProgress === 'function') onProgress(50);
     
     const mimeType = file.type || "audio/wav";
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+    const url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent";
     
     const body = {
       contents: [{
