@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MD Converter — แปลงไฟล์เป็น Markdown ลด Token AI</title>
+<meta name="description" content="แปลงไฟล์ PDF DOCX PPTX XLSX TXT เป็น Markdown ลดการใช้ Token AI — เปิดใช้งานออฟไลน์ได้ทันที" />
+
+<!-- ═══════════════════════ LIBRARIES (CDN) ═══════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module" id="pdfjs-script"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<style>
+/* ══════════════════════════════════════════════════════
+   DESIGN SYSTEM — Dark Mode Glassmorphism
+══════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg:        #0d1117;
+  --bg-card:   rgba(22,27,34,0.85);
+  --bg-card2:  rgba(30,37,48,0.7);
+  --border:    rgba(99,110,123,0.25);
+  --text:      #e6edf3;
+  --muted:     #7d8590;
+  --dim:       #484f58;
+  --accent:    #58a6ff;
+  --green:     #3fb950;
+  --gold:      #d29922;
+  --red:       #f85149;
+  --r:         14px;
+  --r-sm:      8px;
+  --font:      'IBM Plex Sans Thai', sans-serif;
+  --mono:      'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(88,166,255,.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 90%,  rgba(63,185,80,.05)  0%, transparent 60%);
+  line-height: 1.6;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ─── HEADER ─── */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,17,23,.88);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 1.5rem;
+}
+.header-inner {
+  max-width: 960px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 60px; gap: 1rem;
+}
+.logo { display: flex; align-items: center; gap: .75rem; }
+.logo-icon { font-size: 1.7rem; }
+.logo-text  { font-size: 1rem; font-weight: 700; display: block; line-height: 1.2; }
+.logo-sub   { font-size: .7rem; color: var(--muted); display: block; }
+.badges { display: flex; gap: .5rem; flex-wrap: wrap; }
+.badge {
+  font-size: .7rem; padding: .2rem .55rem; border-radius: 999px; font-weight: 500;
+}
+.badge-green { background: rgba(63,185,80,.12); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+.badge-blue  { background: rgba(88,166,255,.12); color: var(--accent); border: 1px solid rgba(88,166,255,.3); }
+.badge-off   { background: rgba(210,153,34,.12); color: var(--gold);   border: 1px solid rgba(210,153,34,.3); }
+
+/* ─── MAIN ─── */
+.main {
+  max-width: 960px; margin: 0 auto;
+  padding: 1.75rem 1.25rem 4rem;
+  display: flex; flex-direction: column; gap: 1.25rem;
+}
+
+/* ─── SUPPORT TABLE ─── */
+.support-bar {
+  display: flex; flex-wrap: wrap; gap: .45rem;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: .9rem 1.1rem;
+  backdrop-filter: blur(12px);
+}
+.support-label { font-size: .75rem; color: var(--muted); font-weight: 600; width: 100%; }
+.ext-chip {
+  font-size: .72rem; padding: .15rem .5rem; border-radius: 999px;
+  background: rgba(88,166,255,.1); color: var(--accent);
+  border: 1px solid rgba(88,166,255,.2);
+}
+.ext-chip.part { background: rgba(210,153,34,.1); color: var(--gold); border-color: rgba(210,153,34,.2); }
+
+/* ─── DROP ZONE ─── */
+.dropzone {
+  border: 2px dashed var(--border); border-radius: var(--r);
+  padding: 2.5rem 1.5rem; text-align: center;
+  background: var(--bg-card); backdrop-filter: blur(12px);
+  cursor: pointer; transition: all .3s ease;
+  display: flex; flex-direction: column; align-items: center; gap: .55rem;
+}
+.dropzone:hover, .dropzone.drag-over {
+  border-color: var(--accent);
+  background: rgba(88,166,255,.07);
+  box-shadow: 0 0 24px rgba(88,166,255,.1);
+  transform: translateY(-2px);
+}
+.drop-icon  { font-size: 2.8rem; }
+.drop-title { font-size: 1.1rem; font-weight: 600; }
+.drop-sub   { color: var(--muted); font-size: .82rem; }
+.drop-hint  { font-size: .72rem; color: var(--dim); max-width: 380px; }
+
+/* ─── BUTTONS ─── */
+.btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .55rem 1.1rem; border-radius: var(--r-sm);
+  font-family: var(--font); font-size: .875rem; font-weight: 600;
+  cursor: pointer; border: none; transition: all .2s ease;
+  text-decoration: none; white-space: nowrap;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #1f6feb, #388bfd);
+  color: #fff; box-shadow: 0 0 14px rgba(88,166,255,.22);
+}
+.btn-primary:hover { background: linear-gradient(135deg, #388bfd, #58a6ff); box-shadow: 0 0 22px rgba(88,166,255,.38); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.btn-outline { background: transparent; color: var(--accent); border: 1px solid rgba(88,166,255,.35); }
+.btn-outline:hover { background: rgba(88,166,255,.1); border-color: var(--accent); }
+.btn-green  { background: linear-gradient(135deg,#238636,#2ea043); color:#fff; }
+.btn-green:hover { background: linear-gradient(135deg,#2ea043,#3fb950); }
+.btn-sm { padding: .35rem .7rem; font-size: .78rem; }
+
+/* ─── FILE LIST ─── */
+.file-list {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r); backdrop-filter: blur(12px); overflow: hidden;
+}
+.file-list-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .8rem 1.1rem; border-bottom: 1px solid var(--border);
+  font-size: .82rem; color: var(--muted); font-weight: 500;
+}
+.file-list-actions { display: flex; gap: .45rem; }
+#sel-list { list-style: none; max-height: 220px; overflow-y: auto; }
+#sel-list li {
+  display: flex; align-items: center; gap: .7rem;
+  padding: .55rem 1.1rem; border-bottom: 1px solid var(--border);
+  font-size: .82rem; transition: background .15s;
+}
+#sel-list li:last-child { border-bottom: none; }
+#sel-list li:hover { background: rgba(88,166,255,.04); }
+.fn  { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fsz { color: var(--muted); font-size: .74rem; white-space: nowrap; }
+
+/* ─── PROGRESS ─── */
+.prog-wrap {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 1.1rem 1.4rem; backdrop-filter: blur(12px);
+}
+.prog-track {
+  height: 7px; background: rgba(99,110,123,.2);
+  border-radius: 999px; overflow: hidden; margin-bottom: .5rem;
+}
+.prog-fill {
+  height: 100%; border-radius: 999px; width: 0%;
+  transition: width .4s ease;
+  background: linear-gradient(90deg, #1f6feb, #58a6ff, #3fb950);
+  background-size: 200%;
+  animation: shimmer 2s linear infinite;
+}
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+.prog-label { font-size: .8rem; color: var(--muted); }
+
+/* ─── STATS ─── */
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr));
+  gap: .9rem; animation: fadeUp .4s ease;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+.stat-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 1.1rem 1.3rem;
+  display: flex; flex-direction: column; gap: .25rem;
+  backdrop-filter: blur(12px); transition: transform .2s, box-shadow .2s;
+}
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,.4); }
+.si { font-size: 1.4rem; }
+.sv { font-size: 1.5rem; font-weight: 700; }
+.sl { font-size: .74rem; color: var(--muted); }
+.c-green { border-color: rgba(63,185,80,.3); }  .c-green .sv { color: var(--green); }
+.c-blue  { border-color: rgba(88,166,255,.3); } .c-blue  .sv { color: var(--accent); }
+.c-gold  { border-color: rgba(210,153,34,.3); } .c-gold  .sv { color: var(--gold); }
+
+/* ─── RESULTS ─── */
+.results-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: .7rem; margin-bottom: .9rem;
+}
+.results-title { font-size: .95rem; font-weight: 700; }
+.result-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r); margin-bottom: .9rem; overflow: hidden;
+  backdrop-filter: blur(12px); animation: fadeUp .3s ease;
+}
+.result-card.ok  { border-left: 3px solid var(--green); }
+.result-card.err { border-left: 3px solid var(--red); }
+.result-hd {
+  display: flex; align-items: center; gap: .7rem;
+  padding: .8rem 1.1rem; cursor: pointer; user-select: none;
+  border-bottom: 1px solid transparent; transition: background .15s;
+}
+.result-hd:hover { background: rgba(88,166,255,.04); }
+.result-hd.open  { border-bottom-color: var(--border); }
+.rn { flex: 1; font-weight: 600; font-size: .875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rmeta { display: flex; gap: .6rem; flex-wrap: wrap; }
+.mtag {
+  font-size: .68rem; padding: .12rem .45rem; border-radius: 999px;
+  background: rgba(88,166,255,.1); color: var(--accent);
+}
+.mtag.g { background: rgba(63,185,80,.1);  color: var(--green); }
+.mtag.o { background: rgba(210,153,34,.1); color: var(--gold); }
+.chev { color: var(--muted); transition: transform .2s; font-size: .75rem; }
+.chev.open { transform: rotate(180deg); }
+.result-body { display: none; padding: .9rem 1.1rem; }
+.result-body.open { display: block; }
+.ract { display: flex; gap: .45rem; margin-bottom: .7rem; flex-wrap: wrap; }
+.md-preview {
+  font-family: var(--mono); font-size: .76rem; line-height: 1.65;
+  background: rgba(13,17,23,.8); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: .9rem; max-height: 300px;
+  overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: #cdd9e5;
+}
+.err-msg {
+  background: rgba(248,81,73,.08); border: 1px solid rgba(248,81,73,.25);
+  border-radius: var(--r-sm); padding: .7rem 1rem; color: var(--red); font-size: .83rem;
+}
+
+/* ─── FOOTER ─── */
+.footer {
+  text-align: center; padding: 1.2rem;
+  color: var(--dim); font-size: .74rem; border-top: 1px solid var(--border);
+}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:600px) {
+  .badges { display: none; }
+  .rmeta  { display: none; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">📝</span>
+      <div>
+        <span class="logo-text">MD Converter</span>
+        <span class="logo-sub">แปลงไฟล์ → Markdown · ลด Token AI</span>
+      </div>
+    </div>
+    <div class="badges">
+      <span class="badge badge-off">Offline Ready</span>
+      <span class="badge badge-green">ไม่ต้องติดตั้ง</span>
+      <span class="badge badge-blue">เปิดใน browser ได้เลย</span>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- SUPPORTED TYPES -->
+  <div class="support-bar">
+    <span class="support-label">ประเภทไฟล์ที่รองรับ:</span>
+    <span class="ext-chip">.docx</span>
+    <span class="ext-chip">.pdf</span>
+    <span class="ext-chip">.xlsx / .xls</span>
+    <span class="ext-chip">.pptx</span>
+    <span class="ext-chip">.txt</span>
+    <span class="ext-chip">.csv</span>
+    <span class="ext-chip">.html</span>
+    <span class="ext-chip">.json</span>
+    <span class="ext-chip">.xml</span>
+    <span class="ext-chip part">.md (ดูตรงๆ)</span>
+  </div>
+
+  <!-- DROP ZONE -->
+  <div class="dropzone" id="dz">
+    <div class="drop-icon">📂</div>
+    <p class="drop-title">ลากไฟล์มาวางที่นี่</p>
+    <p class="drop-sub">หรือ</p>
+    <label class="btn btn-primary" for="fi">เลือกไฟล์</label>
+    <input type="file" id="fi" multiple
+      accept=".pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.txt,.csv,.json,.xml,.html,.htm,.md"
+      hidden />
+    <p class="drop-hint">รองรับหลายไฟล์พร้อมกัน · ทำงานออฟไลน์ · ไฟล์ไม่ถูกส่งไปไหน</p>
+  </div>
+
+  <!-- FILE LIST -->
+  <div class="file-list" id="fl" style="display:none">
+    <div class="file-list-header">
+      <span id="fc">0 ไฟล์</span>
+      <div class="file-list-actions">
+        <button class="btn btn-outline btn-sm" onclick="clearAll()">🗑 ล้าง</button>
+        <button class="btn btn-primary btn-sm" id="bc" onclick="convertAll()">⚡ แปลงเลย</button>
+      </div>
+    </div>
+    <ul id="sel-list"></ul>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="prog-wrap" id="pw" style="display:none">
+    <div class="prog-track"><div class="prog-fill" id="pb"></div></div>
+    <p class="prog-label" id="pl">กำลังแปลง...</p>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid" id="sg" style="display:none">
+    <div class="stat-card">
+      <span class="si">📄</span><span class="sv" id="s-files">0</span>
+      <span class="sl">ไฟล์สำเร็จ</span>
+    </div>
+    <div class="stat-card c-green">
+      <span class="si">💾</span><span class="sv" id="s-orig">0 KB</span>
+      <span class="sl">ขนาดเดิม</span>
+    </div>
+    <div class="stat-card c-blue">
+      <span class="si">📝</span><span class="sv" id="s-md">0 KB</span>
+      <span class="sl">ขนาด Markdown</span>
+    </div>
+    <div class="stat-card c-gold">
+      <span class="si">🎯</span><span class="sv" id="s-save">0%</span>
+      <span class="sl">Token ที่ประหยัด</span>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="rs" style="display:none">
+    <div class="results-hd">
+      <h2 class="results-title">📋 ผลการแปลง</h2>
+      <button class="btn btn-outline btn-sm" id="bdl" onclick="downloadAll()" style="display:none">
+        📦 ดาวน์โหลดทั้งหมด (ZIP)
+      </button>
+    </div>
+    <div id="rl"></div>
+  </div>
+
+</main>
+
+<footer class="footer">
+  <p>ทำงานใน browser · ไฟล์ไม่ออกจากเครื่อง · ขับเคลื่อนโดย mammoth.js · pdf.js · SheetJS · JSZip</p>
+</footer>
+
+<!-- ═══════════════════════ JAVASCRIPT ═══════════════════════ -->
+<script type="module">
+/* ─────────────────────────────────────────
+   PDF.js setup
+───────────────────────────────────────── */
+import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
+window.__pdfjs = pdfjsLib;
+
+/* ─────────────────────────────────────────
+   STATE
+───────────────────────────────────────── */
+let selFiles   = [];
+let convResult = [];
+
+/* ─────────────────────────────────────────
+   ICONS / HELPERS
+───────────────────────────────────────── */
+function icon(name) {
+  const m = { pdf:'📕', docx:'📘', doc:'📘', pptx:'📙', ppt:'📙',
+              xlsx:'📗', xls:'📗', txt:'📄', csv:'📊', json:'🔧',
+              xml:'🔧', html:'🌐', htm:'🌐', md:'📝' };
+  return m[name.split('.').pop().toLowerCase()] || '📄';
+}
+function fmtSz(b) {
+  if(b>=1048576) return (b/1048576).toFixed(1)+' MB';
+  if(b>=1024)    return (b/1024).toFixed(1)+' KB';
+  return b+' B';
+}
+function fmtN(n)  { return n.toLocaleString('th-TH'); }
+function estTok(s){ return Math.max(1, Math.round(s.length/3)); }
+function esc(s)   {
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ─────────────────────────────────────────
+   DRAG & DROP
+───────────────────────────────────────── */
+const dz = document.getElementById('dz');
+const fi = document.getElementById('fi');
+
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  addFiles([...e.dataTransfer.files]);
+});
+dz.addEventListener('click', e => {
+  if(e.target.tagName !== 'LABEL' && e.target.tagName !== 'INPUT') fi.click();
+});
+fi.addEventListener('change', () => { addFiles([...fi.files]); fi.value=''; });
+
+function addFiles(files) {
+  files.forEach(f => {
+    if(!selFiles.find(x => x.name===f.name && x.size===f.size)) selFiles.push(f);
+  });
+  renderList();
+}
+
+function renderList() {
+  const fl = document.getElementById('fl');
+  const fc = document.getElementById('fc');
+  const sl = document.getElementById('sel-list');
+  if(!selFiles.length){ fl.style.display='none'; return; }
+  fl.style.display='block';
+  fc.textContent = selFiles.length+' ไฟล์เลือกไว้';
+  sl.innerHTML = '';
+  selFiles.forEach((f,i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <span>${icon(f.name)}</span>
+      <span class="fn" title="${esc(f.name)}">${esc(f.name)}</span>
+      <span class="fsz">${fmtSz(f.size)}</span>
+      <button onclick="window.__rm(${i})" style="background:none;border:none;cursor:pointer;color:#7d8590;font-size:.95rem;">✕</button>`;
+    sl.appendChild(li);
+  });
+}
+
+window.__rm = (i) => { selFiles.splice(i,1); renderList(); };
+
+function clearAll() {
+  selFiles=[]; convResult=[];
+  renderList();
+  ['pw','sg','rs'].forEach(id => document.getElementById(id).style.display='none');
+  document.getElementById('rl').innerHTML='';
+}
+window.clearAll = clearAll;
+
+/* ─────────────────────────────────────────
+   CONVERTERS
+───────────────────────────────────────── */
+
+/* DOCX → Markdown */
+async function convertDocx(file) {
+  const buf = await file.arrayBuffer();
+  const res = await mammoth.extractRawText({ arrayBuffer: buf });
+  return rawTextToMd(res.value, file.name);
+}
+
+/* PDF → Markdown */
+async function convertPdf(file) {
+  const buf  = await file.arrayBuffer();
+  const pdf  = await window.__pdfjs.getDocument({ data: buf }).promise;
+  let text   = `# ${file.name.replace(/\.pdf$/i,'')}\n\n`;
+  for(let p=1; p<=pdf.numPages; p++) {
+    const page    = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const str = content.items.map(i => i.str).join(' ').trim();
+    if(str) text += `## หน้า ${p}\n\n${str}\n\n`;
+  }
+  return text;
+}
+
+/* XLSX / XLS → Markdown */
+async function convertXlsx(file) {
+  const buf = await file.arrayBuffer();
+  const wb  = XLSX.read(buf, { type:'array' });
+  let md    = `# ${file.name}\n\n`;
+  wb.SheetNames.forEach(name => {
+    const ws   = wb.Sheets[name];
+    const data = XLSX.utils.sheet_to_json(ws, { defval:'' });
+    if(!data.length) return;
+    md += `## ${name}\n\n`;
+    const cols = Object.keys(data[0]);
+    md += '| ' + cols.join(' | ') + ' |\n';
+    md += '| ' + cols.map(()=>'---').join(' | ') + ' |\n';
+    data.forEach(row => {
+      md += '| ' + cols.map(c => String(row[c]||'').replace(/\|/g,'\\|')).join(' | ') + ' |\n';
+    });
+    md += '\n';
+  });
+  return md;
+}
+
+/* PPTX → Markdown (extract text from XML in ZIP) */
+async function convertPptx(file) {
+  const buf  = await file.arrayBuffer();
+  const zip  = await JSZip.loadAsync(buf);
+  let md     = `# ${file.name.replace(/\.pptx$/i,'')}\n\n`;
+  const slides = Object.keys(zip.files)
+    .filter(n => n.match(/^ppt\/slides\/slide\d+\.xml$/))
+    .sort((a,b)=>{
+      const na = parseInt(a.match(/\d+/)[0]);
+      const nb = parseInt(b.match(/\d+/)[0]);
+      return na-nb;
+    });
+  for(let i=0; i<slides.length; i++) {
+    const xml  = await zip.files[slides[i]].async('text');
+    const text = xml
+      .replace(/<a:t>/g,' ').replace(/<\/a:t>/g,'')
+      .replace(/<[^>]+>/g,'')
+      .replace(/\s+/g,' ').trim();
+    md += `## สไลด์ ${i+1}\n\n${text}\n\n`;
+  }
+  return md;
+}
+
+/* TXT / CSV / MD ─ plain text */
+async function convertText(file) {
+  const text = await file.text();
+  const ext  = file.name.split('.').pop().toLowerCase();
+  if(ext==='csv') return csvToMd(file.name, text);
+  if(ext==='md')  return text; // pass-through
+  return `# ${file.name}\n\n${text}`;
+}
+
+/* CSV → Markdown table */
+function csvToMd(name, csv) {
+  const lines = csv.split('\n').filter(l=>l.trim());
+  if(!lines.length) return `# ${name}\n\n(ว่าง)`;
+  const cols  = lines[0].split(',').map(c=>c.trim().replace(/"/g,''));
+  let md = `# ${name}\n\n`;
+  md += '| '+cols.join(' | ')+' |\n';
+  md += '| '+cols.map(()=>'---').join(' | ')+' |\n';
+  lines.slice(1).forEach(l => {
+    const vals = l.split(',').map(v=>v.trim().replace(/"/g,'').replace(/\|/g,'\\|'));
+    md += '| '+vals.join(' | ')+' |\n';
+  });
+  return md;
+}
+
+/* HTML → Markdown (strip tags) */
+async function convertHtml(file) {
+  const text = await file.text();
+  const tmp  = document.createElement('div');
+  tmp.innerHTML = text;
+  const clean = (tmp.querySelector('body') || tmp).innerText || tmp.textContent || '';
+  return rawTextToMd(clean, file.name);
+}
+
+/* JSON → Markdown */
+async function convertJson(file) {
+  const text = await file.text();
+  try {
+    const obj = JSON.parse(text);
+    return `# ${file.name}\n\n\`\`\`json\n${JSON.stringify(obj, null, 2)}\n\`\`\``;
+  } catch {
+    return `# ${file.name}\n\n${text}`;
+  }
+}
+
+/* XML → Markdown */
+async function convertXml(file) {
+  const text = await file.text();
+  const tmp  = document.createElement('div');
+  tmp.innerHTML = text;
+  const clean = tmp.textContent || text.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  return `# ${file.name}\n\n${clean}`;
+}
+
+/* Raw text → Markdown (preserve paragraphs) */
+function rawTextToMd(text, fname) {
+  const name = fname.replace(/\.[^.]+$/, '');
+  const paras = text.split(/\n{2,}/).map(p => p.replace(/\n/g,' ').trim()).filter(Boolean);
+  return `# ${name}\n\n` + paras.join('\n\n');
+}
+
+/* DISPATCH */
+async function convertFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if(ext==='pdf')                    return convertPdf(file);
+  if(['docx','doc'].includes(ext))   return convertDocx(file);
+  if(['xlsx','xls'].includes(ext))   return convertXlsx(file);
+  if(['pptx','ppt'].includes(ext))   return convertPptx(file);
+  if(['txt','md'].includes(ext))     return convertText(file);
+  if(ext==='csv')                    return convertText(file);
+  if(['html','htm'].includes(ext))   return convertHtml(file);
+  if(ext==='json')                   return convertJson(file);
+  if(ext==='xml')                    return convertXml(file);
+  throw new Error(`ไม่รองรับนามสกุล .${ext}`);
+}
+
+/* ─────────────────────────────────────────
+   MAIN CONVERT
+───────────────────────────────────────── */
+window.convertAll = async function() {
+  if(!selFiles.length) return;
+  const btn = document.getElementById('bc');
+  btn.disabled = true; btn.textContent = '⏳ กำลังแปลง...';
+
+  const pw = document.getElementById('pw');
+  const pb = document.getElementById('pb');
+  const pl = document.getElementById('pl');
+  pw.style.display='block';
+  document.getElementById('sg').style.display='none';
+  document.getElementById('rs').style.display='none';
+  document.getElementById('rl').innerHTML='';
+  convResult=[];
+
+  let done=0;
+  const n=selFiles.length;
+  const results=[];
+
+  for(const file of selFiles) {
+    pl.textContent=`แปลง (${done+1}/${n}): ${file.name}`;
+    try {
+      const md    = await convertFile(file);
+      const origB = file.size;
+      const mdB   = new Blob([md]).size;
+      const oTok  = estTok('x'.repeat(Math.min(origB,100000))) * Math.ceil(origB/100000);
+      const mTok  = estTok(md);
+      results.push({
+        name: file.name,
+        outName: file.name.replace(/\.[^.]+$/, '.md'),
+        ok: true, origB, mdB,
+        oTok, mTok,
+        saved: +(((1-mTok/Math.max(oTok,1))*100).toFixed(1)),
+        content: md,
+        preview: md.slice(0, 1500),
+      });
+    } catch(e) {
+      results.push({ name: file.name, ok: false, error: e.message });
+    }
+    done++;
+    pb.style.width = Math.round(done/n*100)+'%';
+  }
+
+  pl.textContent='✅ แปลงเสร็จแล้ว!';
+  convResult = results;
+  renderResults(results);
+
+  btn.disabled=false; btn.textContent='⚡ แปลงเลย';
+};
+
+/* ─────────────────────────────────────────
+   RENDER RESULTS
+───────────────────────────────────────── */
+function renderResults(results) {
+  const rs = document.getElementById('rs');
+  const rl = document.getElementById('rl');
+  const sg = document.getElementById('sg');
+  rs.style.display='block'; sg.style.display='grid'; rl.innerHTML='';
+
+  const ok  = results.filter(r=>r.ok);
+  const totO = ok.reduce((a,r)=>a+r.origB,0);
+  const totM = ok.reduce((a,r)=>a+r.mdB,0);
+  const totOT= ok.reduce((a,r)=>a+r.oTok,0);
+  const totMT= ok.reduce((a,r)=>a+r.mTok,0);
+  const svPct= totOT>0 ? ((1-totMT/totOT)*100).toFixed(1) : 0;
+
+  document.getElementById('s-files').textContent = ok.length;
+  document.getElementById('s-orig').textContent  = fmtSz(totO);
+  document.getElementById('s-md').textContent    = fmtSz(totM);
+  document.getElementById('s-save').textContent  = svPct+'%';
+
+  const bdl = document.getElementById('bdl');
+  bdl.style.display = ok.length>1 ? 'inline-flex' : 'none';
+
+  results.forEach((r,i) => {
+    const card = document.createElement('div');
+    card.className = 'result-card '+(r.ok?'ok':'err');
+    if(r.ok) {
+      const cls = r.saved>50?'o':'';
+      card.innerHTML=`
+      <div class="result-hd" id="rhd-${i}" onclick="toggleCard(${i})">
+        <span>✅</span>
+        <span class="rn" title="${esc(r.name)}">${esc(r.name)}</span>
+        <div class="rmeta">
+          <span class="mtag">${fmtSz(r.origB)} → ${fmtSz(r.mdB)}</span>
+          <span class="mtag g">~${fmtN(r.mTok)} tokens</span>
+          <span class="mtag ${cls}">ประหยัด ${r.saved}%</span>
+        </div>
+        <span class="chev" id="chev-${i}">▼</span>
+      </div>
+      <div class="result-body" id="rbody-${i}">
+        <div class="ract">
+          <button class="btn btn-green btn-sm" onclick="dlOne(${i})">⬇️ ดาวน์โหลด .md</button>
+          <button class="btn btn-outline btn-sm" id="cp-${i}" onclick="copyMd(${i})">📋 คัดลอก</button>
+        </div>
+        <div class="md-preview">${esc(r.preview)}${r.content.length>1500?'\n\n... (แสดงส่วนแรก 1500 ตัวอักษร)':''}</div>
+      </div>`;
+    } else {
+      card.innerHTML=`
+      <div class="result-hd">
+        <span>❌</span>
+        <span class="rn">${esc(r.name)}</span>
+      </div>
+      <div class="result-body open">
+        <div class="err-msg">⚠️ ${esc(r.error)}</div>
+      </div>`;
+    }
+    rl.appendChild(card);
+  });
+
+  rs.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+/* ─────────────────────────────────────────
+   TOGGLE / DOWNLOAD / COPY
+───────────────────────────────────────── */
+window.toggleCard = function(i) {
+  const body = document.getElementById('rbody-'+i);
+  const chev = document.getElementById('chev-'+i);
+  const hd   = document.getElementById('rhd-'+i);
+  const open = body.classList.toggle('open');
+  chev.classList.toggle('open', open);
+  hd.classList.toggle('open', open);
+};
+
+window.dlOne = function(i) {
+  const r   = convResult[i];
+  if(!r||!r.ok) return;
+  const blob = new Blob([r.content], {type:'text/markdown;charset=utf-8'});
+  trigger(blob, r.outName);
+};
+
+window.downloadAll = async function() {
+  const ok = convResult.filter(r=>r.ok);
+  if(!ok.length) return;
+
+  // ถ้าไม่มี JSZip หรือมีแค่ไฟล์เดียว ดาวน์โหลดทีละไฟล์
+  if(ok.length===1) { window.dlOne(convResult.indexOf(ok[0])); return; }
+
+  try {
+    const zip = new JSZip();
+    ok.forEach(r => zip.file(r.outName, r.content));
+    const blob = await zip.generateAsync({type:'blob'});
+    trigger(blob, 'converted_markdown.zip');
+  } catch(e) {
+    // Fallback: ดาวน์โหลดทีละไฟล์
+    ok.forEach((r,i) => setTimeout(()=>trigger(new Blob([r.content],{type:'text/markdown'}),r.outName),i*300));
+  }
+};
+
+window.copyMd = async function(i) {
+  const r   = convResult[i];
+  if(!r||!r.ok) return;
+  try {
+    await navigator.clipboard.writeText(r.content);
+    const btn = document.getElementById('cp-'+i);
+    const orig = btn.textContent;
+    btn.textContent='✅ คัดลอกแล้ว!';
+    setTimeout(()=>btn.textContent=orig, 2000);
+  } catch(e) { alert('คัดลอกไม่ได้: '+e.message); }
+};
+
+function trigger(blob, name) {
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 3000);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MD Converter v2 — Universal Content to Markdown</title>
+  <meta name="description" content="แปลงไฟล์เอกสาร รูปภาพ OCR เสียง วิดีโอ และยูทูบเป็น Markdown — ทำงานออฟไลน์ ปลอดภัย มั่นใจเรื่อง PDPA" />
+  
+  <!-- PWA Metadata -->
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#0d1117" />
+  <link rel="apple-touch-icon" href="./assets/icons/icon-192.png" />
+
+  <!-- STYLES -->
+  <link rel="stylesheet" href="./assets/css/app.css" />
+
+  <!-- OFFLINE VENDOR LIBRARIES -->
+  <script src="./libs/mammoth.browser.min.js"></script>
+  <script src="./libs/xlsx.full.min.js"></script>
+  <script src="./libs/jszip.min.js"></script>
+  <script src="./libs/tesseract.min.js"></script>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🔄</span>
+        <div>
+          <span class="logo-text">MD Converter v2.0.0</span>
+          <span class="logo-sub">Universal Content → Markdown</span>
+        </div>
+      </div>
+      <div class="badges">
+        <span class="badge badge-green">Privacy First (Local)</span>
+        <span class="badge badge-blue">PWA Installable</span>
+        <span class="badge badge-gold">Offline Ready</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTAINER -->
+  <main class="container">
+    
+    <!-- TABS -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="documents">📄 Documents</button>
+      <button class="tab" data-tab="images">🖼 Images / OCR</button>
+      <button class="tab" data-tab="audio">🎙 Audio</button>
+      <button class="tab" data-tab="video">🎬 Video</button>
+      <button class="tab" data-tab="youtube">▶ YouTube Transcript</button>
+      <button class="tab" data-tab="text">📝 Raw Text</button>
+    </nav>
+
+    <!-- GRID LAYOUT -->
+    <div class="main-grid">
+      
+      <!-- SIDEBAR (SETTINGS) -->
+      <aside class="sidebar">
+        
+        <!-- Markdown Presets -->
+        <section class="settings-group">
+          <h3 class="settings-title">📝 Output Format Preset</h3>
+          <div class="setting-item">
+            <label class="setting-label" for="output-preset">Select Preset</label>
+            <select class="select-box" id="output-preset">
+              <option value="standard">Standard Markdown</option>
+              <option value="meeting">Meeting Notes</option>
+              <option value="lecture">Lecture / Seminar Notes</option>
+              <option value="research">Research Notes</option>
+              <option value="transcript">Audio Transcript</option>
+            </select>
+          </div>
+        </section>
+
+        <!-- PDPA & Anonymization -->
+        <section class="settings-group">
+          <h3 class="settings-title">🔒 Privacy & PDPA Sanitizer</h3>
+          
+          <div class="setting-item switch-control">
+            <span class="setting-label">Anonymize Company Names</span>
+            <label>
+              <input type="checkbox" class="switch-input" id="pdpa-toggle" />
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+          
+          <div class="setting-item">
+            <span class="setting-desc">Automatically redacts corporate entity names to "Company A, B, C, D". Runs 100% locally.</span>
+          </div>
+
+          <div class="setting-item">
+            <label class="setting-label" for="pdpa-keywords">Custom Keywords (CSV)</label>
+            <textarea class="input-text" id="pdpa-keywords" placeholder="เช่น บริษัท ชาญไชย, บริษัท เอฟ, บจก.สมชาย"></textarea>
+          </div>
+        </section>
+
+        <!-- OCR Language Selection -->
+        <section class="settings-group" id="ocr-settings" style="display:none;">
+          <h3 class="settings-title">🖼 OCR Options</h3>
+          <div class="setting-item">
+            <label class="setting-label" for="ocr-lang">OCR Language</label>
+            <select class="select-box" id="ocr-lang">
+              <option value="eng+tha">(Recommended) English + Thai</option>
+              <option value="tha">Thai only</option>
+              <option value="eng">English only</option>
+            </select>
+          </div>
+        </section>
+
+        <!-- External Audio transcription -->
+        <section class="settings-group" id="audio-settings" style="display:none;">
+          <h3 class="settings-title">🎙 Transcription API</h3>
+          <div class="setting-item">
+            <label class="setting-label" for="api-provider">API Provider</label>
+            <select class="select-box" id="api-provider">
+              <option value="local">Mode A: Local Browser Speech (Free)</option>
+              <option value="whisper">Mode B: OpenAI Whisper API</option>
+              <option value="gemini">Mode B: Google Gemini API (Whisper/Speech)</option>
+            </select>
+          </div>
+          <div class="setting-item" id="api-key-container" style="display:none;">
+            <label class="setting-label" for="api-key">API Bearer Key / Secret</label>
+            <input type="password" class="input-text" id="api-key" placeholder="sk-..." />
+            <span class="setting-desc">Stored locally in your browser cache. Never sent to any server except the direct provider API.</span>
+          </div>
+        </section>
+
+        <!-- Local status -->
+        <section class="settings-group">
+          <h3 class="settings-title">🖥 Device Capabilities</h3>
+          <div class="setting-item">
+            <span class="setting-label">Local Transcription:</span>
+            <span class="badge" id="local-speech-status">Checking...</span>
+          </div>
+        </section>
+
+      </aside>
+
+      <!-- WORKSPACE PANEL -->
+      <section class="work-panel">
+        
+        <!-- DROPZONE (for file upload tabs) -->
+        <div class="dropzone" id="dz">
+          <div class="drop-icon" id="dz-icon">📂</div>
+          <p class="drop-title" id="dz-title">ลากไฟล์มาวางที่นี่</p>
+          <p class="drop-sub">หรือ</p>
+          <label class="btn btn-primary" for="fi" id="dz-btn-lbl">เลือกไฟล์</label>
+          <input type="file" id="fi" multiple hidden />
+          <p class="drop-hint" id="dz-hint">ไฟล์จะประมวลผลภายในเบราว์เซอร์ของท่านโดยตรง — ไม่มีการอัปโหลดเก็บในเซิร์ฟเวอร์ใดๆ</p>
+        </div>
+
+        <!-- YOUTUBE & TEXT CUSTOM INPUTS (Hidden by default, shown based on active tab) -->
+        <div class="settings-group" id="custom-input-panel" style="display:none;">
+          <h3 class="settings-title" id="custom-input-title">YouTube Transcript</h3>
+          <div class="setting-item" id="yt-url-container">
+            <label class="setting-label" for="yt-url">Paste YouTube URL (Authorized Check)</label>
+            <div style="display:flex; gap:0.5rem;">
+              <input type="text" class="input-text" id="yt-url" placeholder="https://www.youtube.com/watch?v=..." />
+              <button class="btn btn-outline" id="btn-yt-check">Analyze</button>
+            </div>
+            <div class="alert-box alert-info" style="margin-top:0.4rem; padding: 0.4rem 0.6rem;">
+              ℹ️ Direct YouTube extraction requires an authorized integration. You can paste the transcript below, or upload a video/audio file you have permission to use.
+            </div>
+          </div>
+          <div class="setting-item" id="custom-text-container">
+            <label class="setting-label" for="custom-text-input" id="custom-text-label">Paste Transcript Content / Text</label>
+            <textarea class="input-text" id="custom-text-input" style="height: 180px;" placeholder="วางข้อความที่นี่..."></textarea>
+          </div>
+          <div class="setting-item" id="yt-settings-container" style="display:none; margin-top:0.5rem; gap:0.5rem;">
+            <div class="switch-control">
+              <span class="setting-label" style="font-size:0.75rem;">Remove Timestamps</span>
+              <label><input type="checkbox" class="switch-input" id="yt-remove-timestamps" checked /><span class="switch-slider"></span></label>
+            </div>
+            <div class="switch-control">
+              <span class="setting-label" style="font-size:0.75rem;">Merge Short Lines</span>
+              <label><input type="checkbox" class="switch-input" id="yt-merge-lines" checked /><span class="switch-slider"></span></label>
+            </div>
+            <div class="switch-control">
+              <span class="setting-label" style="font-size:0.75rem;">Format Speakers (e.g. [Speaker 1]:)</span>
+              <label><input type="checkbox" class="switch-input" id="yt-format-speakers" /><span class="switch-slider"></span></label>
+            </div>
+          </div>
+          <div style="text-align:right; margin-top:0.5rem;">
+            <button class="btn btn-primary" id="btn-process-custom">⚡ Convert Paste</button>
+          </div>
+        </div>
+
+        <!-- FILE QUEUE MANAGER -->
+        <div class="queue-panel" id="qp" style="display:none;">
+          <div class="queue-header">
+            <span id="queue-count">0 Files Selected</span>
+            <div class="queue-actions">
+              <button class="btn btn-outline btn-sm" id="btn-clear-queue">🗑 Clear All</button>
+              <button class="btn btn-primary btn-sm" id="btn-convert-queue">⚡ Convert Queue</button>
+            </div>
+          </div>
+          <ul class="queue-list" id="queue-items"></ul>
+        </div>
+
+        <!-- PROGRESS BAR -->
+        <div class="progress-panel" id="pp" style="display:none;">
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <div class="progress-label">
+            <span id="progress-text">Processing...</span>
+            <span id="progress-percent">0%</span>
+          </div>
+        </div>
+
+        <!-- STATS PANEL -->
+        <div class="stats-grid" id="sp" style="display:none;">
+          <div class="stat-card blue">
+            <span class="stat-val" id="stat-files">0</span>
+            <span class="stat-lbl">Files Converted</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-val" id="stat-orig">0 KB</span>
+            <span class="stat-lbl">Original Size</span>
+          </div>
+          <div class="stat-card ok">
+            <span class="stat-val" id="stat-md">0 KB</span>
+            <span class="stat-lbl">Markdown Size</span>
+          </div>
+          <div class="stat-card gold">
+            <span class="stat-val" id="stat-saved">0%</span>
+            <span class="stat-lbl">Token Saved</span>
+          </div>
+        </div>
+
+        <!-- WORKSPACE (Side by Side Preview and Editor) -->
+        <div class="workspace-panel" id="wp" style="display:none;">
+          <div class="workspace-header">
+            <h2 class="workspace-title" id="ws-filename">Result Workspace</h2>
+            <div class="workspace-actions">
+              <button class="btn btn-outline btn-sm" id="btn-toggle-preview">👁 Show Preview</button>
+              <button class="btn btn-outline btn-sm" id="btn-copy-md">📋 Copy MD</button>
+              <button class="btn btn-green btn-sm" id="btn-dl-md">⬇️ Download .md</button>
+              <button class="btn btn-green btn-sm" id="btn-dl-zip" style="display:none;">📦 Download ZIP</button>
+            </div>
+          </div>
+          <div class="workspace-body">
+            
+            <!-- Metadata Panel -->
+            <div class="meta-panel" id="ws-meta">
+              <h4 class="meta-title">Source Metadata</h4>
+              <div class="meta-row">
+                <span class="meta-lbl">File:</span>
+                <span class="meta-val" id="meta-file">-</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-lbl">Type:</span>
+                <span class="meta-val" id="meta-type">-</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-lbl">Original Size:</span>
+                <span class="meta-val" id="meta-orig-size">-</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-lbl">Markdown Size:</span>
+                <span class="meta-val" id="meta-md-size">-</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-lbl">Est. Tokens:</span>
+                <span class="meta-val" id="meta-tokens">-</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-lbl">Token Reduction:</span>
+                <span class="meta-val" id="meta-reduction">-</span>
+              </div>
+              <div class="meta-row" id="meta-ocr-warn" style="display:none;">
+                <div class="alert-box alert-warning">
+                  ⚠️ AI-generated transcription draft. Vocals/Music overlap may reduce accuracy.
+                </div>
+              </div>
+            </div>
+            
+            <!-- Editor Workspace -->
+            <div class="editor-workspace">
+              <div class="editor-container">
+                <div class="editor-toolbar">
+                  <!-- Optional formatting helper buttons can go here -->
+                </div>
+                <textarea class="editor-area" id="editor-text" placeholder="Markdown output will display here..."></textarea>
+                <div class="preview-area" id="preview-html"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>MD Converter v2.0.0 · Local Static Application Shell · <strong>Privacy-First Processing</strong></p>
+    <p style="margin-top:0.25rem; font-size:0.65rem;">Powered by mammoth.js · pdf.js · SheetJS · Tesseract.js · JSZip</p>
+  </footer>
+
+  <!-- MAIN ENTRY SCRIPT -->
+  <script type="module" src="./assets/js/app.js"></script>
+
+  <!-- PDF.js module setup fallback -->
+  <script type="module">
+    import * as pdfjsLib from './libs/pdf.min.mjs';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdf.worker.min.mjs';
+    window.__pdfjs = pdfjsLib;
+  </script>
+
+  <!-- Service Worker registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .then(reg => console.log('ServiceWorker registration successful with scope: ', reg.scope))
+          .catch(err => console.log('ServiceWorker registration failed: ', err));
+      });
+    }
+  </script>
+
+</body>
+</html>

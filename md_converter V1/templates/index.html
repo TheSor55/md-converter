@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MD Converter — แปลงไฟล์เป็น Markdown ลด Token AI</title>
+  <meta name="description" content="แปลงไฟล์ PDF, DOCX, PPTX, XLSX เป็น Markdown เพื่อลดการใช้ Token AI อย่างมีประสิทธิภาพ" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">⬇️</span>
+      <div>
+        <span class="logo-text">MD Converter</span>
+        <span class="logo-sub">แปลงไฟล์ → Markdown ลด Token AI</span>
+      </div>
+    </div>
+    <div class="header-badges">
+      <span class="badge badge-green">🟢 พร้อมใช้งาน</span>
+      <span class="badge badge-blue">markitdown by Microsoft</span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" id="tab-upload" onclick="switchTab('upload')">
+      📤 อัปโหลดไฟล์
+    </button>
+    <button class="tab" id="tab-folder" onclick="switchTab('folder')">
+      📁 แปลงจากโฟลเดอร์
+    </button>
+  </div>
+
+  <!-- ═══ TAB: UPLOAD ═══ -->
+  <section id="panel-upload" class="panel active">
+
+    <!-- DROP ZONE -->
+    <div class="dropzone" id="dropzone">
+      <div class="drop-icon">📂</div>
+      <p class="drop-title">ลากไฟล์มาวางที่นี่</p>
+      <p class="drop-sub">หรือ</p>
+      <label class="btn btn-primary" for="file-input">เลือกไฟล์</label>
+      <input type="file" id="file-input" multiple accept=".pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.txt,.csv,.json,.xml,.html,.htm,.jpg,.jpeg,.png,.gif,.bmp,.webp,.zip,.epub" hidden />
+      <p class="drop-hint">
+        รองรับ: PDF · DOCX · PPTX · XLSX · TXT · CSV · HTML · JPG · PNG · ZIP · EPUB
+      </p>
+    </div>
+
+    <!-- SELECTED FILES LIST -->
+    <div class="file-list" id="file-list" style="display:none">
+      <div class="file-list-header">
+        <span id="file-count">0 ไฟล์เลือกไว้</span>
+        <div class="file-list-actions">
+          <button class="btn btn-outline btn-sm" onclick="clearFiles()">🗑 ล้างทั้งหมด</button>
+          <button class="btn btn-primary btn-sm" id="btn-convert" onclick="startConvert()">
+            ⚡ แปลงเลย
+          </button>
+        </div>
+      </div>
+      <ul id="selected-files"></ul>
+    </div>
+
+  </section>
+
+  <!-- ═══ TAB: FOLDER ═══ -->
+  <section id="panel-folder" class="panel">
+    <div class="folder-panel">
+      <h2 class="panel-title">📁 แปลงจากโฟลเดอร์บนเครื่อง</h2>
+      <p class="panel-desc">ใส่ path โฟลเดอร์ แล้วกด "แปลง" ได้เลย ไม่ต้องอัปโหลด</p>
+
+      <div class="folder-presets">
+        <p class="preset-label">📌 โฟลเดอร์ที่ใช้บ่อย:</p>
+        <button class="preset-btn" onclick="setFolderPath('D:\\C8\\ไฟล์ล่าสุด 12072569')">
+          📄 ไฟล์ล่าสุด 12072569
+        </button>
+        <button class="preset-btn" onclick="setFolderPath('D:\\C8\\บทความข้อมูลวิชาการทางสุขภาพ')">
+          🏥 บทความวิชาการทางสุขภาพ
+        </button>
+      </div>
+
+      <div class="folder-input-row">
+        <input
+          type="text"
+          id="folder-path"
+          class="folder-input"
+          placeholder="เช่น D:\C8\ไฟล์ล่าสุด 12072569"
+        />
+        <button class="btn btn-primary" id="btn-folder-convert" onclick="startFolderConvert()">
+          ⚡ แปลง
+        </button>
+      </div>
+
+      <div id="folder-progress" style="display:none" class="progress-wrapper">
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="folder-progress-bar"></div>
+        </div>
+        <p class="progress-label" id="folder-progress-label">กำลังแปลง...</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ PROGRESS (upload tab) ═══ -->
+  <div id="progress-section" class="progress-wrapper" style="display:none">
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progress-bar"></div>
+    </div>
+    <p class="progress-label" id="progress-label">กำลังแปลง...</p>
+  </div>
+
+  <!-- ═══ STATS OVERVIEW ═══ -->
+  <div id="stats-overview" class="stats-overview" style="display:none">
+    <div class="stat-card">
+      <span class="stat-icon">📄</span>
+      <span class="stat-value" id="stat-files">0</span>
+      <span class="stat-label">ไฟล์สำเร็จ</span>
+    </div>
+    <div class="stat-card accent-green">
+      <span class="stat-icon">💾</span>
+      <span class="stat-value" id="stat-orig-size">0 KB</span>
+      <span class="stat-label">ขนาดเดิม</span>
+    </div>
+    <div class="stat-card accent-blue">
+      <span class="stat-icon">📝</span>
+      <span class="stat-value" id="stat-md-size">0 KB</span>
+      <span class="stat-label">ขนาด MD</span>
+    </div>
+    <div class="stat-card accent-gold">
+      <span class="stat-icon">🎯</span>
+      <span class="stat-value" id="stat-saved">0%</span>
+      <span class="stat-label">Token ที่ประหยัด</span>
+    </div>
+  </div>
+
+  <!-- ═══ RESULTS ═══ -->
+  <div id="results-section" style="display:none">
+    <div class="results-header">
+      <h2 class="results-title">📋 ผลการแปลง</h2>
+      <button class="btn btn-outline" id="btn-download-all" onclick="downloadAll()" style="display:none">
+        📦 ดาวน์โหลดทั้งหมด (ZIP)
+      </button>
+    </div>
+    <div id="results-list"></div>
+  </div>
+
+</main>
+
+<footer class="footer">
+  <p>⚡ Powered by <strong>markitdown</strong> (Microsoft) · สร้างด้วย Python + Flask</p>
+</footer>
+
+<script src="/static/script.js"></script>
+</body>
+</html>
