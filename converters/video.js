@@ -9,40 +9,10 @@ import { WhisperProvider, GeminiProvider } from './audio.js';
 export async function convertVideo(file, providerName, apiKey, onProgress) {
   if (typeof onProgress === 'function') onProgress(5);
   
-  const arrayBuffer = await file.arrayBuffer();
-  if (typeof onProgress === 'function') onProgress(15);
-  
-  // Create offline AudioContext to decode audio data from the video file
-  const AudioContext = window.AudioContext || window.webkitAudioContext;
-  const audioCtx = new AudioContext();
-  
-  let decodedBuffer;
-  try {
-    decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-  } catch (err) {
-    throw new Error(`Failed to decode audio track from video file: ${err.message}. Ensure the video file has a valid audio stream.`);
-  }
-  
-  if (typeof onProgress === 'function') onProgress(35);
-  
-  // Downsample to 16000Hz Mono using OfflineAudioContext to reduce size significantly
-  const OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-  const offlineCtx = new OfflineAudioContext(1, decodedBuffer.duration * 16000, 16000);
-  
-  const source = offlineCtx.createBufferSource();
-  source.buffer = decodedBuffer;
-  source.connect(offlineCtx.destination);
-  source.start();
-  
-  const audioBuffer = await offlineCtx.startRendering();
-  if (typeof onProgress === 'function') onProgress(50);
-  
-  // Convert AudioBuffer to WAV blob
-  const wavBlob = bufferToWav(audioBuffer);
-  if (typeof onProgress === 'function') onProgress(60);
-  
-  // Transcribe wavBlob using appropriate provider
-  const wavFile = new File([wavBlob], `${file.name.replace(/\.[^.]+$/, '')}.wav`, { type: 'audio/wav' });
+  // Downsample to 16kHz mono WAV file
+  const wavFile = await downsampleAudioFile(file, (pct) => {
+    if (typeof onProgress === 'function') onProgress(5 + Math.round(pct * 0.5)); // 5% to 55%
+  });
   
   let provider;
   if (providerName === 'whisper') {
@@ -54,10 +24,42 @@ export async function convertVideo(file, providerName, apiKey, onProgress) {
   }
   
   return await provider.transcribe(wavFile, apiKey, (pct) => {
-    // Map API transcription progress (0-100) to overall video progress (60-100)
-    const overallPct = 60 + Math.round(pct * 0.4);
+    const overallPct = 55 + Math.round(pct * 0.45); // 55% to 100%
     if (typeof onProgress === 'function') onProgress(overallPct);
   });
+}
+
+// Shared helper to downsample any audio/video file's audio track to 16kHz mono WAV
+export async function downsampleAudioFile(file, onProgress) {
+  const arrayBuffer = await file.arrayBuffer();
+  if (typeof onProgress === 'function') onProgress(20);
+  
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = new AudioContext();
+  
+  let decodedBuffer;
+  try {
+    decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+  } catch (err) {
+    throw new Error(`Failed to decode audio track: ${err.message}. Ensure the file has a valid audio stream.`);
+  }
+  if (typeof onProgress === 'function') onProgress(50);
+  
+  const OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const offlineCtx = new OfflineAudioContext(1, decodedBuffer.duration * 16000, 16000);
+  
+  const source = offlineCtx.createBufferSource();
+  source.buffer = decodedBuffer;
+  source.connect(offlineCtx.destination);
+  source.start();
+  
+  const audioBuffer = await offlineCtx.startRendering();
+  if (typeof onProgress === 'function') onProgress(80);
+  
+  const wavBlob = bufferToWav(audioBuffer);
+  if (typeof onProgress === 'function') onProgress(100);
+  
+  return new File([wavBlob], `${file.name.replace(/\.[^.]+$/, '')}.wav`, { type: 'audio/wav' });
 }
 
 // Convert AudioBuffer to WAV format

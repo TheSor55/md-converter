@@ -10,7 +10,7 @@ import { convertSpreadsheet } from '../../converters/spreadsheet.js';
 import { convertPresentation } from '../../converters/presentation.js';
 import { convertImageOcr } from '../../converters/image-ocr.js';
 import { WhisperProvider, GeminiProvider } from '../../converters/audio.js';
-import { convertVideo } from '../../converters/video.js';
+import { convertVideo, downsampleAudioFile } from '../../converters/video.js';
 import { convertCadOrCode } from '../../converters/cad-code.js';
 
 // Configuration size limits in bytes
@@ -150,6 +150,12 @@ export class QueueManager {
           throw new Error('Local browser engine only supports real-time microphone input. Please select OpenAI Whisper or Google Gemini API for file transcription.');
         }
         
+        // Downsample audio to 16kHz mono WAV file to fit API size limits and speed up upload
+        const wavFile = await downsampleAudioFile(file, (pct) => {
+          item.progress = Math.round(pct * 0.5); // 0% to 50%
+          if (onProgressCallback) onProgressCallback(item);
+        });
+        
         let provider;
         if (providerName === 'whisper') {
           provider = new WhisperProvider();
@@ -159,8 +165,8 @@ export class QueueManager {
           throw new Error('Unsupported transcription provider');
         }
         
-        rawText = await provider.transcribe(file, apiKey, (pct) => {
-          item.progress = pct;
+        rawText = await provider.transcribe(wavFile, apiKey, (pct) => {
+          item.progress = 50 + Math.round(pct * 0.5); // 50% to 100%
           if (onProgressCallback) onProgressCallback(item);
         });
       } 

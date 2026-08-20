@@ -59,77 +59,42 @@ export class WhisperProvider extends TranscriptionProvider {
   }
 }
 
-// Mode B: Google Gemini API Provider (1.5 Flash File API)
+// Mode B: Google Gemini API Provider (1.5 Flash Inline - CORS Friendly)
 export class GeminiProvider extends TranscriptionProvider {
   async transcribe(file, apiKey, onProgress) {
     if (!apiKey) {
       throw new Error("API Key is required for Google Gemini transcription.");
     }
-
-    const mimeType = file.type || "audio/wav";
-    const boundary = "foo_bar_boundary";
-    const metadata = JSON.stringify({ file: { displayName: file.name } });
     
-    const parts = [
-      `--${boundary}\r\n`,
-      `Content-Type: application/json; charset=UTF-8\r\n\r\n`,
-      metadata,
-      `\r\n--${boundary}\r\n`,
-      `Content-Type: ${mimeType}\r\n\r\n`,
-      file,
-      `\r\n--${boundary}--`
-    ];
-    
-    const bodyBlob = new Blob(parts, { type: `multipart/related; boundary=${boundary}` });
-    
-    // Upload using XHR to track progress
-    const uploadResult = await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}&uploadType=multipart`);
-      xhr.setRequestHeader("Content-Type", `multipart/related; boundary=${boundary}`);
-      xhr.setRequestHeader("X-Goog-Upload-Protocol", "multipart");
-      
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable && typeof onProgress === 'function') {
-          // Reserve the last 20% for server transcription processing
-          const pct = Math.round((e.loaded / e.total) * 80);
-          onProgress(pct);
-        }
-      };
-      
-      xhr.onload = () => {
-        if (xhr.status === 200 || xhr.status === 201) {
-          try {
-            resolve(JSON.parse(xhr.responseText));
-          } catch {
-            reject(new Error("Failed to parse file upload response"));
-          }
-        } else {
-          reject(new Error(`File upload failed: ${xhr.status} ${xhr.statusText}\n${xhr.responseText}`));
-        }
-      };
-      
-      xhr.onerror = () => reject(new Error("Network error during file upload to Gemini"));
-      xhr.send(bodyBlob);
+    // Read file as base64
+    if (typeof onProgress === 'function') onProgress(10);
+    const base64Data = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = () => reject(new Error("Failed to read audio file"));
+      reader.readAsDataURL(file);
     });
     
-    if (typeof onProgress === 'function') onProgress(85);
+    if (typeof onProgress === 'function') onProgress(50);
     
-    // Call generateContent referencing the uploaded file uri
-    const fileUri = uploadResult.file.uri;
-    const fileMime = uploadResult.file.mimeType;
+    const mimeType = file.type || "audio/wav";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const body = {
+      contents: [{
+        parts: [
+          { inlineData: { mimeType, data: base64Data } },
+          { text: "Please transcribe this audio file. Output only the verbatim transcription. Do not summarize, format, or add conversational intros/outros." }
+        ]
+      }]
+    };
+    
+    if (typeof onProgress === 'function') onProgress(75);
+    
+    const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { fileData: { fileUri: fileUri, mimeType: fileMime } },
-            { text: "Please transcribe this audio file. Output only the verbatim transcription. Do not summarize, format, or add conversational intros/outros." }
-          ]
-        }]
-      })
+      body: JSON.stringify(body)
     });
     
     if (typeof onProgress === 'function') onProgress(100);
