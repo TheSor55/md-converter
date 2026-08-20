@@ -85,8 +85,9 @@ export class GeminiProvider extends TranscriptionProvider {
     // Upload using XHR to track progress
     const uploadResult = await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`);
+      xhr.open("POST", `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}&uploadType=multipart`);
       xhr.setRequestHeader("Content-Type", `multipart/related; boundary=${boundary}`);
+      xhr.setRequestHeader("X-Goog-Upload-Protocol", "multipart");
       
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable && typeof onProgress === 'function') {
