@@ -66,6 +66,9 @@ export class GeminiProvider extends TranscriptionProvider {
       throw new Error("API Key is required for Google Gemini transcription.");
     }
     
+    // Diagnostic log (safe: only prints length and prefix to verify autofill status)
+    console.log(`[Gemini API] Request initiated. Key length: ${apiKey.length}, Prefix: ${apiKey.substring(0, 5)}...`);
+    
     // Read file as base64
     if (typeof onProgress === 'function') onProgress(10);
     const base64Data = await new Promise((resolve, reject) => {
