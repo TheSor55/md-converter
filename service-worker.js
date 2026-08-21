@@ -1,4 +1,4 @@
-const CACHE_NAME = "md-converter-v2.0.9";
+const CACHE_NAME = "md-converter-v2.0.10";
 const ASSETS = [
   "./",
   "./index.html",
@@ -56,6 +56,9 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   // Only handle HTTP/HTTPS requests
   if (!e.request.url.startsWith('http')) return;
+  
+  // Only cache GET requests (Cache API does not support caching POST/PUT/DELETE)
+  if (e.request.method !== 'GET') return;
 
   e.respondWith(
     fetch(e.request)
