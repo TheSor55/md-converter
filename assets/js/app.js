@@ -250,11 +250,11 @@ document.addEventListener('DOMContentLoaded', () => {
           const data = await res.json();
           if (res.ok) {
             const modelNames = data.models ? data.models.map(m => m.name.replace('models/', '')) : [];
-            const hasFlash = modelNames.some(name => name.includes('gemini-1.5-flash'));
+            const hasFlash = modelNames.some(name => /gemini-.*-flash/.test(name));
             if (hasFlash) {
-              apiTestStatus.innerHTML = '<span style="color:var(--green);">✅ Connection successful! Gemini 1.5 Flash is ready.</span>';
+              apiTestStatus.innerHTML = '<span style="color:var(--green);">✅ Connection successful! Gemini Flash is ready.</span>';
             } else {
-              apiTestStatus.innerHTML = `<span style="color:var(--gold);">⚠️ Connected, but gemini-1.5-flash is not available.<br/>Available models: ${modelNames.join(', ')}</span>`;
+              apiTestStatus.innerHTML = `<span style="color:var(--gold);">⚠️ Connected, but Gemini Flash is not available.<br/>Available models: ${modelNames.join(', ')}</span>`;
             }
           } else {
             apiTestStatus.innerHTML = `<span style="color:var(--red);">❌ API Error: ${data.error ? data.error.message : res.statusText}</span>`;
