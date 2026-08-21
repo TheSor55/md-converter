@@ -277,4 +277,29 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // 7. YouTube URL Analyze Action
+  const btnYtCheck = document.getElementById('btn-yt-check');
+  if (btnYtCheck) {
+    btnYtCheck.addEventListener('click', () => {
+      const ytUrl = document.getElementById('yt-url').value.trim();
+      if (!ytUrl) {
+        ui.showAlert('warning', 'กรุณากรอกลิงก์ YouTube ก่อนกด Analyze ครับ');
+        return;
+      }
+
+      // Extract video ID from standard or shortened YouTube URL
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = ytUrl.match(regExp);
+      const videoId = (match && match[2].length === 11) ? match[2] : null;
+
+      if (!videoId) {
+        ui.showAlert('error', 'รูปแบบลิงก์ YouTube ไม่ถูกต้อง กรุณาตรวจสอบอีกครั้งครับ');
+        return;
+      }
+
+      const ytVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      ui.showAlert('info', `🔒 เนื่องจากระบบรักษาความปลอดภัยของ YouTube (CORS Policy) บนเบราว์เซอร์ จึงไม่สามารถดาวน์โหลดคำถอดเสียงจากวิดีโอเข้าหน้าเว็บได้โดยตรงแบบอัตโนมัติ\n\n💡 คำแนะนำขั้นตอนในการดึงคำถอดเสียงใน 10 วินาที:\n\n1. คลิกเปิดลิงก์วิดีโอนี้เพื่อดูบน YouTube:\n👉 ${ytVideoUrl}\n\n2. ใต้คลิปวิดีโอ (แถบรายละเอียดคำบรรยาย) ให้คลิกปุ่ม "... เพิ่มเติม" (More) แล้วคลิกปุ่ม "แสดงคำถอดเสียง" (Show Transcript)\n\n3. คัดลอกข้อความคำถอดเสียงทั้งหมดจากหน้านั้น แล้วนำมาวางลงในกล่องข้อความ "วางสคริปต์/คำอธิบายย่อย..." ด้านล่าง\n\n4. ติ๊กเลือกตัวเลือกบีบอัดข้อมูล เช่น Remove Timestamps (ลบเลขเวลา) แล้วกดปุ่ม "Convert Paste" สีฟ้าขวาล่างเพื่อทำความสะอาดและจัดรูปแบบเป็น Markdown ทันทีครับ!`);
+    });
+  }
 });
