@@ -1,4 +1,4 @@
-const CACHE_NAME = "md-converter-v2.0.11";
+const CACHE_NAME = "md-converter-v3.0.0";
 const ASSETS = [
   "./",
   "./index.html",
@@ -30,7 +30,7 @@ const ASSETS = [
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log("[Service Worker] Caching App Shell and libraries");
+      console.log("[Service Worker] Caching App Shell and libraries for v3.0.0");
       return cache.addAll(ASSETS);
     }).then(() => self.skipWaiting())
   );
@@ -63,7 +63,6 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(
     fetch(e.request)
       .then((networkResponse) => {
-        // If valid response, clone and update the cache
         if (networkResponse && networkResponse.status === 200) {
           const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -73,7 +72,6 @@ self.addEventListener("fetch", (e) => {
         return networkResponse;
       })
       .catch(() => {
-        // Fallback to cache if network is unavailable
         return caches.match(e.request);
       })
   );
